@@ -27,7 +27,7 @@ export TELEGRAM_BOT_TOKEN='YOUR_BOT_TOKEN'
 export WHISPER_BIN='./whisper.cpp/build/bin/whisper-cli'
 export WHISPER_MODEL='./whisper.cpp/models/ggml-medium.bin'
 export WHISPER_LANGUAGE='auto'
-export MAX_CONCURRENT='2'
+export MAX_CONCURRENT='1'  # one transcription at a time; others queue
 export TRANSCRIBE_TIMEOUT='300'
 ```
 

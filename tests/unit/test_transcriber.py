@@ -8,6 +8,7 @@ import pytest
 from telegram_whisper_bot.config import Settings
 from telegram_whisper_bot.transcriber import (
     TranscriptionError,
+    TranscriptionProgress,
     TranscriptionTimeout,
     WhisperTranscriber,
 )
@@ -278,3 +279,34 @@ async def test_transcribe_respects_max_concurrent(
 
     assert sorted([out1, out2]) == ["one", "two"]
     assert max_seen == 1
+
+
+@pytest.mark.asyncio
+async def test_transcribe_reports_started_before_process_launch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    binary = tmp_path / "whisper-cli"
+    model = tmp_path / "model.bin"
+    wav = tmp_path / "input.wav"
+    txt = tmp_path / "input.txt"
+    binary.write_text("x", encoding="utf-8")
+    model.write_text("x", encoding="utf-8")
+    wav.write_text("x", encoding="utf-8")
+    txt.write_text("hello", encoding="utf-8")
+    tr = WhisperTranscriber(_settings(binary, model, max_concurrent=1))
+
+    events: list[str] = []
+
+    async def fake_create(*_: str, **__: object) -> FakeProc:
+        events.append("launch")
+        return FakeProc(returncode=0)
+
+    async def on_progress(progress: TranscriptionProgress) -> None:
+        if progress.started:
+            events.append("started")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create)
+
+    await tr.transcribe(wav, progress_callback=on_progress)
+
+    assert events == ["started", "launch"]

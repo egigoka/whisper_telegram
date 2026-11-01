@@ -63,7 +63,7 @@ def load_settings() -> Settings:
             "TELEGRAM_BOT_TOKEN is required (env var or secrets.py TELEGRAM_BOT_TOKEN)"
         )
 
-    max_concurrent = int(os.environ.get("MAX_CONCURRENT", "8"))
+    max_concurrent = int(os.environ.get("MAX_CONCURRENT", "1"))
     if max_concurrent < 1:
         raise ValueError("MAX_CONCURRENT must be >= 1")
 

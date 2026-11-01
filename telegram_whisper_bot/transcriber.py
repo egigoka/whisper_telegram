@@ -21,6 +21,8 @@ class TranscriptionTimeout(TranscriptionError):
 class TranscriptionProgress:
     percent: float | None = None
     audio_total_sec: float | None = None
+    # Set once a concurrency slot is acquired and whisper is about to start.
+    started: bool = False
 
 
 class WhisperTranscriber:
@@ -57,6 +59,8 @@ class WhisperTranscriber:
         ]
 
         async with self._sem:
+            if progress_callback is not None:
+                await progress_callback(TranscriptionProgress(started=True))
             try:
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,

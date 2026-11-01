@@ -278,10 +278,15 @@ async def _process_media_message(
     status_message = await message.reply("Transcribing...")
     logging.info("Transcription started sender=%s file=%s model=%s", sender, filename, model_name)
     progress_state: dict[str, float | None] = {"percent": None, "audio_total_sec": None}
-    start_ts = time.monotonic()
+    queued_ts = time.monotonic()
+    # Reset when the transcriber acquires a slot, so ETA excludes queue wait.
+    start_ts: float | None = None
     stop_progress = asyncio.Event()
 
     async def on_progress(progress: TranscriptionProgress) -> None:
+        nonlocal start_ts
+        if progress.started:
+            start_ts = time.monotonic()
         if progress.percent is not None:
             progress_state["percent"] = progress.percent
         if progress.audio_total_sec is not None:
@@ -294,11 +299,14 @@ async def _process_media_message(
             if stop_progress.is_set():
                 break
 
-            elapsed = time.monotonic() - start_ts
+            now = time.monotonic()
+            elapsed = now - (start_ts if start_ts is not None else queued_ts)
             pct = progress_state["percent"]
             total_sec = progress_state["audio_total_sec"]
             prefix = f"Transcribing ({model_name})..."
-            if pct is not None:
+            if start_ts is None and pct is None:
+                text = f"Queued, waiting for other transcriptions... {_fmt_mmss(now - queued_ts)}"
+            elif pct is not None:
                 eta = _fmt_mmss(0) if pct >= 100 else _fmt_mmss((elapsed * (100.0 - pct) / pct) if pct > 0 else 0)
                 if total_sec is not None and total_sec > 0:
                     done_sec = min(total_sec, total_sec * (pct / 100.0))
